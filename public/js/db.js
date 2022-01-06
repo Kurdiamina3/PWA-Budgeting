@@ -1,77 +1,66 @@
 "use strict";
+const indexedDB =
+  window.indexedDB ||
+  window.mozIndexedDB ||
+  window.webkitIndexedDB ||
+  window.msIndexedDB ||
+  window.shimIndexedDB;
 
-const pendingObjectStoreName = `pending`;
+let db;
+const request = indexedDB.open("budget", 1);
 
-// create a new db request for a budget database
-const request = indexedDB.open(`budget`, 2);
-
-request.onupgradeneeded = event => {
-    const db = request.result;
-
-
-    console.log(event);
-
-    if (!db.objectStoreNames.contains(pendingObjectStoreName)) {
-        db.createObjectStore(pendingObjectStoreName, { autoIncrement: true });
-    }
+request.onupgradeneeded = (event) => {
+  event.target.result.createObjectStore("pending", {
+    keyPath: "id",
+    autoIncrement: true
+  });
 };
 
-request.onsuccess = event => {
-    console.log(`Success! ${event.type}`);
-    //online or not
-    if (navigator.onLine) {
-        checkDatabase();
-    }
+request.onerror = (err) => {
+  console.log(err.message);
 };
 
-request.onerror = event => console.error(event);
+request.onsuccess = (event) => {
+  db = event.target.result;
 
-function checkDatabase() {
-    const db = request.result;
+  if (navigator.onLine) {
+    checkDatabase();
+  }
+};
 
-    let transaction = db.transaction([pendingObjectStoreName], `readwrite`);
-
-    let store = transaction.objectStore(pendingObjectStoreName);
-
-    const getAll = store.getAll();
-
-    getAll.onsuccess = () => {
-        if (getAll.result.length > 0) {
-            fetch(`/api/transaction/bulk`, {
-                method: `POST`,
-                body: JSON.stringify(getAll.result),
-                headers: {
-                    Accept: `application/json, text/plain, */*`,
-                    "Content-Type": `application/json`
-                }
-            })
-                .then(response => response.json())
-                .then(() => {
-                
-                    transaction = db.transaction([pendingObjectStoreName], `readwrite`);
-
-                
-                    store = transaction.objectStore(pendingObjectStoreName);
-
-                   
-                    store.clear();
-                });
-        }
-    };
-}
-
+// This function is called in index.js
+// when the user creates a transaction while offline.
 function saveRecord(record) {
-    const db = request.result;
-
-    
-    const transaction = db.transaction([pendingObjectStoreName], `readwrite`);
-
-    
-    const store = transaction.objectStore(pendingObjectStoreName);
-
-    
-    store.add(record);
+  const transaction = db.transaction("pending", "readwrite");
+  const store = transaction.objectStore("pending");
+  store.add(record);
 }
 
+// called when user goes online to send transactions stored in db to server
+function checkDatabase() {
+  const transaction = db.transaction("pending", "readonly");
+  const store = transaction.objectStore("pending");
+  const getAll = store.getAll();
 
-window.addEventListener(`online`, checkDatabase);
+  getAll.onsuccess = () => {
+    if (getAll.result.length > 0) {
+      fetch("/api/transaction/bulk", {
+        method: "POST",
+        body: JSON.stringify(getAll.result),
+        headers: {
+          Accept: "application/json, text/plain, */*",
+          "Content-Type": "application/json"
+        }
+      })
+        .then((response) => response.json())
+        .then(() => {
+          const transaction = db.transaction("pending", "readwrite");
+          const store = transaction.objectStore("pending");
+          store.clear();
+        });
+    }
+  };
+}
+
+// listen for app coming back online
+window.addEventListener("online", checkDatabase);
