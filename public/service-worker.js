@@ -1,12 +1,11 @@
 'use strict'
 
 const FILES_TO_CACHE = [
-    `/db.js`,
-    `/index.html`,
-    `/index.js`,
-    `/index.css`,
-    `/manifest.webmanifest`,
-    `/img/icons/money.png`
+    "/",
+    "/index.html",
+    "/css/styles.css",
+    "/js/index.js",
+    "/js/db.js",
 ];
 
 const STATIC_CACHE = `static-cache-v1`;
