@@ -6,74 +6,72 @@ const FILES_TO_CACHE = [
     "/css/styles.css",
     "/js/index.js",
     "/js/db.js",
+    "/icons/icon-192x192.png",
+    "/icons/icon-512x512.png",
+    "https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css",
+    "https://cdn.jsdelivr.net/npm/chart.js@2.8.0"
 ];
 
-const STATIC_CACHE = `static-cache-v1`;
-const RUNTIME_CACHE = `runtime-cache`;
+const CACHE_NAME = "static-cache-v1";
+const DATA_CACHE_NAME = "data-cache-v1";
 
-self.addEventListener(`install`, event => {
-    event.waitUntil(
-        caches
-            .open(STATIC_CACHE)
-            .then(cache => cache.addAll(FILES_TO_CACHE))
-            .then(() => self.skipWaiting())
+self.addEventListener("install", (evt) => {
+    evt.waitUntil(
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.addAll(FILES_TO_CACHE);
+      })
     );
-});
+  
+    self.skipWaiting();
+  });
+  
+  self.addEventListener("activate", (evt) => {
 
-self.addEventListener(`activate`, event => {
-    const currentCaches = [STATIC_CACHE, RUNTIME_CACHE];
-    event.waitUntil(
-        caches
-            .keys()
-            .then(cacheNames =>
-                // return array of cache names that are old to delete
-                cacheNames.filter(cacheName => !currentCaches.includes(cacheName))
-            )
-            .then(cachesToDelete =>
-                Promise.all(
-                    cachesToDelete.map(cacheToDelete => caches.delete(cacheToDelete))
-                )
-            )
-            .then(() => self.clients.claim())
-    );
-});
-
-self.addEventListener(`fetch`, event => {
-    if (
-        event.request.method !== `GET` ||
-        !event.request.url.startsWith(self.location.origin)
-    ) {
-        event.respondWith(fetch(event.request));
-        return;
-    }
-
-    if (event.request.url.includes(`/api/transaction`)) {
-        event.respondWith(
-            caches.open(RUNTIME_CACHE).then(cache =>
-                fetch(event.request)
-                    .then(response => {
-                        cache.put(event.request, response.clone());
-                        return response;
-                    })
-                    .catch(() => caches.match(event.request))
-            )
-        );
-        return;
-    }
-
-    event.respondWith(
-        caches.match(event.request).then(cachedResponse => {
-            if (cachedResponse) {
-                return cachedResponse;
+    evt.waitUntil(
+      caches.keys().then((keyList) => {
+        return Promise.all(
+          keyList.map((key) => {
+            if (key !== CACHE_NAME && key !== DATA_CACHE_NAME) {
+              return caches.delete(key);
             }
-
-            return caches
-                .open(RUNTIME_CACHE)
-                .then(cache =>
-                    fetch(event.request).then(response =>
-                        cache.put(event.request, response.clone()).then(() => response)
-                    )
-                );
-        })
+          })
+        );
+      })
     );
-});
+  
+    self.clients.claim();
+  });
+  
+  self.addEventListener("fetch", (evt) => {
+    if (evt.request.url.includes("/api/") && evt.request.method === "GET") {
+      evt.respondWith(
+        caches
+          .open(DATA_CACHE_NAME)
+          .then((cache) => {
+            return fetch(evt.request)
+              .then((response) => {
+            
+                if (response.status === 200) {
+                  cache.put(evt.request, response.clone());
+                }
+  
+                return response;
+              })
+              .catch(() => {
+            
+                return cache.match(evt.request);
+              });
+          })
+          .catch((err) => console.log(err))
+      );
+  
+
+      return;
+    }
+  
+    evt.respondWith(
+      caches.match(evt.request).then((response) => {
+        return response || fetch(evt.request);
+      })
+    );
+  });
