@@ -29,7 +29,7 @@ request.onerror = event => console.error(event);
 function checkDatabase() {
     const db = request.result;
 
-    let transactions = db.transaction([pendingObjectStoreName], `readwrite`);
+    let transaction = db.transaction([pendingObjectStoreName], `readwrite`);
 
     let store = transaction.objectStore(pendingObjectStoreName);
 
@@ -48,7 +48,7 @@ function checkDatabase() {
                 .then(response => response.json())
                 .then(() => {
                 
-                    transactions = db.transaction([pendingObjectStoreName], `readwrite`);
+                    transaction = db.transaction([pendingObjectStoreName], `readwrite`);
 
                 
                     store = transaction.objectStore(pendingObjectStoreName);
@@ -64,7 +64,7 @@ function saveRecord(record) {
     const db = request.result;
 
     
-    const transaction = db.transaction([pendingObjectStoreName], `readwrites`);
+    const transaction = db.transaction([pendingObjectStoreName], `readwrite`);
 
     
     const store = transaction.objectStore(pendingObjectStoreName);
