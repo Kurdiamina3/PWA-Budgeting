@@ -1,7 +1,9 @@
+'use strict';
+
 let transactions = [];
 let myChart;
 
-fetch("/api/transaction")
+fetch(`/api/transaction`)
   .then(response => {
     return response.json();
   })
@@ -141,13 +143,17 @@ function sendTransaction(isAdding) {
     // clear form
     nameEl.value = "";
     amountEl.value = "";
+
+    console.error(err);
   });
 }
 
 document.querySelector("#add-btn").onclick = function() {
+  event.preventDefault();
   sendTransaction(true);
 };
 
 document.querySelector("#sub-btn").onclick = function() {
+  event.preventDefault();
   sendTransaction(false);
 };
